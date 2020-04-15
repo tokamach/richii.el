@@ -3,14 +3,22 @@
 ;; TODO: license here
 
 ;;; Commentary:
+;; Originally I was using SVG to draw the tiles, but using Unicode makes the tiles more readable,
+;; and saves the effort of drawing in SVG, albeit at the cost of less control over positioning.
+;; Rather than go for accuracy of a 4 player board I think optimising for 1 player ergonomics
+;; is a better route.
 
 ;;; Code:
 (require 'esxml)
 
-;; TODO: make this a defcustom
+;; TODO: make all these consts defcustoms
+
 (defconst richii/richii-buffer-name "*richii*"
   "The name of the buffer created when starting richii mode.")
 
+(defconst richii/edge-padding 20)
+
+;; Tiles here
 (defun richii/make-numeric-tileset (name)
   "Return a mahjong tileset of the symbol NAME."
   (loop
@@ -57,12 +65,38 @@ First a full tileset is made, then shuffled, then split into four."
 	 (hand-size (/ (length tileset) 4)))
     (seq-partition tileset hand-size)))
 
-(defun richii/draw-tile (tile offset)
-  "Return an svg representation of TILE, drawn at OFFSET."
-  `(rect ((x . ,(* offset 12))
-	  (y . 0)
-	  (width . 10)
-	  (height . 20))))
+;; 
+;; Drawing functions
+;;
+
+(defun richii/hand-to-string (hand)
+  "Take a hand list HAND and return a unicode string representing it."
+  (let ((sou-base #x1F010)
+	(pin-base #x1F019)
+	(man-base #x1F007)
+	(wind-north-id #x1F003)
+	(wind-south-id #x1F001)
+	(wind-east-id #x1F000)
+	(wind-west-id #x1F002)
+	(dragon-red-id #x1F004)
+	(dragon-green-id #x1F005)
+	(dragon-white-id #x1F006))
+    (loop for (set . value) in hand
+	  collect (cond
+		   ((eq set 'sou) (+ sou-base value))
+		   ((eq set 'pin) (+ pin-base value))
+		   ((eq set 'man) (+ man-base value))
+		   ((eq set 'wind)
+		    (cond
+		     ((eq value 'north) wind-north-id)
+		     ((eq value 'south) wind-south-id)
+		     ((eq value 'east)  wind-east-id)
+		     ((eq value 'west)  wind-west-id)))
+		   ((eq set 'dragon)
+		    (cond
+		     ((eq value 'red)   dragon-red-id)
+		     ((eq value 'green) dragon-green-id)
+		     ((eq value 'white) dragon-white-id)))))))
 
 (defun richii/draw-closed-hand (hand side)
   "Draw a closed hand HAND on SIDE. Called tiles will be shown,
@@ -71,29 +105,36 @@ but all others drawn upright and obscured.")
 (defun richii/draw-open-hand (hand side)
   "Draw a single HAND on screen, where SIDE is one of 'top,
 'bottom, 'left, 'right. (NEWS are not used to avoid confusion.)"
-       ;; Draw each hand at incrementing offsets
+  ;; Draw each hand at incrementing offsets
+  (message "%s %s" "Drawing hand:" side)
   (loop for tile in hand
 	for x from 0
-	do (richii/draw-tile tile x)))
+	collect	(richii/draw-tile tile x)))
 
 (defun richii/draw-hands (hands)
   "Draw four HANDS on screen, where HANDS is a list of four hand lists."
-  '())
+  (loop for hand in hands
+	for side in '(top bottom left right)
+	append (richii/draw-open-hand hand side)))
+
+(define-derived-mode richii-mode
+  special-mode "Richii Mahjong"
+  "Richii Mahjong game mode."
+  :group 'games)
 
 (defun richii ()
   "Start a game of richii mahjong."
+  (interactive)
   ;; Make new buffer/clear restart current
   (switch-to-buffer richii/richii-buffer-name)
   (erase-buffer)
-  (setq svg (svg-create (window-pixel-width) (window-pixel-height)))
   
   ;; Go richii-mode
   
   ;; Setup hands
-  
+  (setq hands (richii/make-hands))
   
   ;; Draw em
-  (svg-insert-image (append svg (draw-hands )))
   
   ;; Start game
   ;; At end of each turn, redraw hands.
