@@ -18,7 +18,10 @@
 
 (defconst richii/edge-padding 20)
 
-;; Tiles here
+;; 
+;; Tile Functions
+;; 
+
 (defun richii/make-numeric-tileset (name)
   "Return a mahjong tileset of the symbol NAME."
   (loop
@@ -46,7 +49,7 @@
 		   richii/wind-tiles
 		   richii/dragon-tiles)))
     (append l l l l))
-  "Create the full set of richii tiles.
+  "The full set of richii tiles.
 This includes all three sets of simple tiles: Sou, Pin, and Man,
 and the honor sets: Winds and Dragons.")
 
@@ -62,8 +65,11 @@ Taken from https://stackoverflow.com/a/49505968."
   "Return a list of 4 shuffled hands (themselves lists).
 First a full tileset is made, then shuffled, then split into four."
   (let* ((tileset (richii/kshuffle richii/tileset))
-	 (hand-size (/ (length tileset) 4)))
-    (seq-partition tileset hand-size)))
+	 (hand-size 13))
+    (loop
+     for seat in '(east south north west)
+     for hand in (seq-partition tileset hand-size)
+     collect `(,seat . ,hand))))
 
 ;; 
 ;; Drawing functions
@@ -82,45 +88,62 @@ First a full tileset is made, then shuffled, then split into four."
 	(dragon-green-id #x1F005)
 	(dragon-white-id #x1F006))
     (loop for (set . value) in hand
-	  collect (cond
-		   ((eq set 'sou) (+ sou-base value))
-		   ((eq set 'pin) (+ pin-base value))
-		   ((eq set 'man) (+ man-base value))
-		   ((eq set 'wind)
-		    (cond
-		     ((eq value 'north) wind-north-id)
-		     ((eq value 'south) wind-south-id)
-		     ((eq value 'east)  wind-east-id)
-		     ((eq value 'west)  wind-west-id)))
-		   ((eq set 'dragon)
-		    (cond
-		     ((eq value 'red)   dragon-red-id)
-		     ((eq value 'green) dragon-green-id)
-		     ((eq value 'white) dragon-white-id)))))))
+	  concat (string (cond
+		     ((eq set 'sou) (+ sou-base value))
+		     ((eq set 'pin) (+ pin-base value))
+		     ((eq set 'man) (+ man-base value))
+		     ((eq set 'wind)
+		      (cond
+		       ((eq value 'north) wind-north-id)
+		       ((eq value 'south) wind-south-id)
+		       ((eq value 'east)  wind-east-id)
+		       ((eq value 'west)  wind-west-id)))
+		     ((eq set 'dragon)
+		      (cond
+		       ((eq value 'red)   dragon-red-id)
+		       ((eq value 'green) dragon-green-id)
+		       ((eq value 'white) dragon-white-id))))))))
 
 (defun richii/draw-closed-hand (hand side)
   "Draw a closed hand HAND on SIDE. Called tiles will be shown,
-but all others drawn upright and obscured.")
+but all others drawn upright and obscured."
+  ;; Todo just use index of SNW in list   
+  (let ((seat-letter (cond
+		      ((eq side 'south) "S")
+		      ((eq side 'north) "N")
+		      ((eq side 'west)  "W"))))
+    (insert seat-letter)
+    (insert " ")
+    (insert (richii/hand-to-string hand) "\n")))
 
-(defun richii/draw-open-hand (hand side)
-  "Draw a single HAND on screen, where SIDE is one of 'top,
-'bottom, 'left, 'right. (NEWS are not used to avoid confusion.)"
-  ;; Draw each hand at incrementing offsets
-  (message "%s %s" "Drawing hand:" side)
-  (loop for tile in hand
-	for x from 0
-	collect	(richii/draw-tile tile x)))
+(defun richii/draw-open-hand (hand)
+  "Draw the players hand."
+  ;; TODO make these less hardcoded
+  (insert "E ")
+  (insert (richii/hand-to-string hand) "\n"))
 
 (defun richii/draw-hands (hands)
   "Draw four HANDS on screen, where HANDS is a list of four hand lists."
-  (loop for hand in hands
-	for side in '(top bottom left right)
-	append (richii/draw-open-hand hand side)))
+  (loop for seat in '(south north west)
+	do (richii/draw-closed-hand (cdr (assoc seat hands)) seat))
+
+  ;; TODO defcustom separator char
+  (insert "\n" (make-string 15 ?-) "\n\n")
+  (richii/draw-open-hand (cdr (assoc 'east hands))))
+
+(defun richii/draw (prevalent-wind hands)
+  ;; Write prevalent wind
+  ;; Write 
+  (richii/draw-hands hands))
 
 (define-derived-mode richii-mode
   special-mode "Richii Mahjong"
   "Richii Mahjong game mode."
   :group 'games)
+
+;; TODO mode keymap
+;; left/right - switch highlighted tile
+;; enter - discard
 
 (defun richii ()
   "Start a game of richii mahjong."
@@ -135,6 +158,8 @@ but all others drawn upright and obscured.")
   (setq hands (richii/make-hands))
   
   ;; Draw em
+  (goto-line 1)
+  (richii/draw 'east hands)
   
   ;; Start game
   ;; At end of each turn, redraw hands.
