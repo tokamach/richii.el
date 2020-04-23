@@ -53,6 +53,23 @@
 This includes all three sets of simple tiles: Sou, Pin, and Man,
 and the honor sets: Winds and Dragons.")
 
+;; Helpers to tidy up sorting etc
+;; use '-' syntax to avoid writing soup lmao
+(defun richii/sou-p (tile)
+  (eq (car tile) 'sou))
+
+(defun richii/pin-p (tile)
+  (eq (car tile) 'man))
+
+(defun richii/man-p (tile)
+  (eq (car tile) 'pin))
+
+(defun richii/wind-p (tile)
+  (eq (car tile) 'wind))
+
+(defun richii/dragon-p (tile)
+  (eq (car tile) 'dragon))
+
 (defun richii/kshuffle (list)
   "Perform a Knuth/Fisher-Yates shuffle on LIST.
 Taken from https://stackoverflow.com/a/49505968."
@@ -70,6 +87,38 @@ First a full tileset is made, then shuffled, then split into four."
      for seat in '(east south north west)
      for hand in (seq-partition tileset hand-size)
      collect `(,seat . ,hand))))
+
+(defun richii/sort-hand (hand)
+  "Take HAND and sort it according to the usual mahjong rules:
+(Row in sort order)
+Numerals: Man < Pin < Sou.
+Winds: South < East < West < (North)?
+Dragons: White < Green < Red"
+  ;; In order to implement an easy sort, we'll assign numeric
+  ;; values to the above tile categories. Then we can just use <
+  (let ((tile-order [man pin sou wind dragon])
+	(wind-order [south east west north])
+	(dragon-order [white green red]))
+    (cl-labels ((dragon-sort (a b)
+			     (< (seq-position dragon-order (cdr a))
+				(seq-position dragon-order (cdr b))))
+		(wind-sort (a b)
+			   (< (seq-position wind-order (cdr a))
+			      (seq-position wind-order (cdr b))))
+		(tile-sort-predicate (a b)
+				     (cond
+				      ;; Both tiles are same set, compare based on value
+				      ((eq (car a) (car b))
+				       (cond
+					((or (richii/man-p a)
+					     (richii/pin-p a)
+					     (richii/sou-p a)) (< (cdr a) (cdr b)))
+					((richii/wind-p a) (wind-sort a b))
+					((richii/dragon-p a) (dragon-sort a b))))
+				      ;; Tiles are different sets, use tile order
+				      (t (< (seq-position tile-order (car a))
+					    (seq-position tile-order (car b)))))))
+      (sort hand #'tile-sort-predicate))))
 
 ;; 
 ;; Drawing functions
@@ -89,25 +138,26 @@ First a full tileset is made, then shuffled, then split into four."
 	(dragon-white-id #x1F006))
     (loop for (set . value) in hand
 	  concat (string (cond
-		     ((eq set 'sou) (+ sou-base value))
-		     ((eq set 'pin) (+ pin-base value))
-		     ((eq set 'man) (+ man-base value))
-		     ((eq set 'wind)
-		      (cond
-		       ((eq value 'north) wind-north-id)
-		       ((eq value 'south) wind-south-id)
-		       ((eq value 'east)  wind-east-id)
-		       ((eq value 'west)  wind-west-id)))
-		     ((eq set 'dragon)
-		      (cond
-		       ((eq value 'red)   dragon-red-id)
-		       ((eq value 'green) dragon-green-id)
-		       ((eq value 'white) dragon-white-id))))))))
+			  ((eq set 'sou) (+ sou-base value))
+			  ((eq set 'pin) (+ pin-base value))
+			  ((eq set 'man) (+ man-base value))
+			  ((eq set 'wind)
+			   (cond
+			    ((eq value 'north) wind-north-id)
+			    ((eq value 'south) wind-south-id)
+			    ((eq value 'east)  wind-east-id)
+			    ((eq value 'west)  wind-west-id)))
+			  ((eq set 'dragon)
+			   (cond
+			    ((eq value 'red)   dragon-red-id)
+			    ((eq value 'green) dragon-green-id)
+			    ((eq value 'white) dragon-white-id))))))))
 
 (defun richii/draw-closed-hand (hand side)
   "Draw a closed hand HAND on SIDE. Called tiles will be shown,
 but all others drawn upright and obscured."
-  ;; Todo just use index of SNW in list   
+  ;; TODO don't use ESNW, use like ABCD and map them to
+  ;; appropriate seat winds
   (let ((seat-letter (cond
 		      ((eq side 'south) "S")
 		      ((eq side 'north) "N")
@@ -120,7 +170,7 @@ but all others drawn upright and obscured."
   "Draw the players hand."
   ;; TODO make these less hardcoded
   (insert "E ")
-  (insert (richii/hand-to-string hand) "\n"))
+  (insert (richii/hand-to-string (richii/sort-hand hand)) "\n"))
 
 (defun richii/draw-hands (hands)
   "Draw four HANDS on screen, where HANDS is a list of four hand lists."
@@ -144,6 +194,10 @@ but all others drawn upright and obscured."
 ;; TODO mode keymap
 ;; left/right - switch highlighted tile
 ;; enter - discard
+
+;; (define-key 'richii-mode-map (kbd "<left>") nil)
+;; (define-key 'richii-mode-map (kbd "<right") nil)
+;; (define-key 'richii-mode-map (kbd "<return>") nil)
 
 (defun richii ()
   "Start a game of richii mahjong."
