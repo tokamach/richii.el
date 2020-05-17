@@ -9,14 +9,20 @@
 ;; is a better route.
 
 ;;; Code:
-(require 'esxml)
+;; (require 'esxml)
 
+;;
+;; Consts
+;; 
 ;; TODO: make all these consts defcustoms
 
 (defconst richii/richii-buffer-name "*richii*"
   "The name of the buffer created when starting richii mode.")
 
 (defconst richii/edge-padding 20)
+
+(defconst richii/blank-tile-char ?🀫)
+
 
 ;; 
 ;; Tile Functions
@@ -86,7 +92,7 @@ First a full tileset is made, then shuffled, then split into four."
     (loop
      for seat in '(east south north west)
      for hand in (seq-partition tileset hand-size)
-     collect `(,seat . ,hand))))
+     collect `(,seat . ,(richii/sort-hand hand)))))
 
 (defun richii/sort-hand (hand)
   "Take HAND and sort it according to the usual mahjong rules:
@@ -138,9 +144,9 @@ Dragons: White < Green < Red"
 	(dragon-white-id #x1F006))
     (loop for (set . value) in hand
 	  concat (string (cond
-			  ((eq set 'sou) (+ sou-base value))
-			  ((eq set 'pin) (+ pin-base value))
-			  ((eq set 'man) (+ man-base value))
+			  ((eq set 'sou) (+ sou-base (- value 1)))
+			  ((eq set 'pin) (+ pin-base (- value 1)))
+			  ((eq set 'man) (+ man-base (- value 1)))
 			  ((eq set 'wind)
 			   (cond
 			    ((eq value 'north) wind-north-id)
@@ -153,7 +159,7 @@ Dragons: White < Green < Red"
 			    ((eq value 'green) dragon-green-id)
 			    ((eq value 'white) dragon-white-id))))))))
 
-(defun richii/draw-closed-hand (hand side)
+(defun richii/draw-closed-hand (hand side &optional debug-print)
   "Draw a closed hand HAND on SIDE. Called tiles will be shown,
 but all others drawn upright and obscured."
   ;; TODO don't use ESNW, use like ABCD and map them to
@@ -164,20 +170,21 @@ but all others drawn upright and obscured."
 		      ((eq side 'west)  "W"))))
     (insert seat-letter)
     (insert " ")
-    (insert (richii/hand-to-string hand) "\n")))
+    (if debug-print
+	(insert (richii/hand-to-string hand) "\n")
+      (insert (format "%s\n" (make-string (length hand) richii/blank-tile-char))))))
 
 (defun richii/draw-open-hand (hand)
   "Draw the players hand."
   ;; TODO make these less hardcoded
   (insert "E ")
-  (insert (richii/hand-to-string (richii/sort-hand hand)) "\n"))
+  (insert (richii/hand-to-string hand) "\n"))
 
 (defun richii/draw-hands (hands)
   "Draw four HANDS on screen, where HANDS is a list of four hand lists."
   (loop for seat in '(south north west)
 	do (richii/draw-closed-hand (cdr (assoc seat hands)) seat))
-
-  ;; TODO defcustom separator char
+  ;; TODO defcustom separator cha  
   (insert "\n" (make-string 15 ?-) "\n\n")
   (richii/draw-open-hand (cdr (assoc 'east hands))))
 
