@@ -9,13 +9,8 @@
 ;; is a better route.
 
 ;;; Code:
-;; (require 'esxml)
 
-;;
-;; Consts
-;; 
 ;; TODO: make all these consts defcustoms
-
 (defconst richii/richii-buffer-name "*richii*"
   "The name of the buffer created when starting richii mode.")
 
@@ -83,6 +78,10 @@ Taken from https://stackoverflow.com/a/49505968."
 	do (rotatef (elt list (random i))
 		    (elt list (1- i))))
   list)
+
+;;
+;; Hand stuff
+;;
 
 (defun richii/make-hands ()
   "Return a list of 4 shuffled hands (themselves lists).
@@ -158,6 +157,18 @@ Dragons: White < Green < Red"
 			    ((eq value 'red)   dragon-red-id)
 			    ((eq value 'green) dragon-green-id)
 			    ((eq value 'white) dragon-white-id))))))))
+
+;;
+;; Yaku/Score functions
+;;
+
+(defun yakup (hand)
+  "Does a hand have any Yaku?"
+  '())
+
+;;
+;; Drawing functions
+;;
 
 (defun richii/draw-closed-hand (hand side &optional debug-print)
   "Draw a closed hand HAND on SIDE. Called tiles will be shown,
