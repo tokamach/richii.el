@@ -25,7 +25,7 @@
 
 (defun richii/make-numeric-tileset (name)
   "Return a mahjong tileset of the symbol NAME."
-  (loop
+  (cl-loop
    for i from 1 upto 9
    collect `(,name . ,i)))
 
@@ -74,9 +74,9 @@ and the honor sets: Winds and Dragons.")
 (defun richii/kshuffle (list)
   "Perform a Knuth/Fisher-Yates shuffle on LIST.
 Taken from https://stackoverflow.com/a/49505968."
-  (loop for i from (length list) downto 2
-	do (rotatef (elt list (random i))
-		    (elt list (1- i))))
+  (cl-loop for i from (length list) downto 2
+	   do (cl-rotatef (elt list (random i))
+			  (elt list (1- i))))
   list)
 
 ;;
@@ -88,7 +88,7 @@ Taken from https://stackoverflow.com/a/49505968."
 First a full tileset is made, then shuffled, then split into four."
   (let* ((tileset (richii/kshuffle richii/tileset))
 	 (hand-size 13))
-    (loop
+    (cl-loop
      for seat in '(east south north west)
      for hand in (seq-partition tileset hand-size)
      collect `(,seat . ,(richii/sort-hand hand)))))
@@ -141,22 +141,22 @@ Dragons: White < Green < Red"
 	(dragon-red-id #x1F004)
 	(dragon-green-id #x1F005)
 	(dragon-white-id #x1F006))
-    (loop for (set . value) in hand
-	  concat (string (cond
-			  ((eq set 'sou) (+ sou-base (- value 1)))
-			  ((eq set 'pin) (+ pin-base (- value 1)))
-			  ((eq set 'man) (+ man-base (- value 1)))
-			  ((eq set 'wind)
-			   (cond
-			    ((eq value 'north) wind-north-id)
-			    ((eq value 'south) wind-south-id)
-			    ((eq value 'east)  wind-east-id)
-			    ((eq value 'west)  wind-west-id)))
-			  ((eq set 'dragon)
-			   (cond
-			    ((eq value 'red)   dragon-red-id)
-			    ((eq value 'green) dragon-green-id)
-			    ((eq value 'white) dragon-white-id))))))))
+    (cl-loop for (set . value) in hand
+	     concat (string (cond
+			     ((eq set 'sou) (+ sou-base (- value 1)))
+			     ((eq set 'pin) (+ pin-base (- value 1)))
+			     ((eq set 'man) (+ man-base (- value 1)))
+			     ((eq set 'wind)
+			      (cond
+			       ((eq value 'north) wind-north-id)
+			       ((eq value 'south) wind-south-id)
+			       ((eq value 'east)  wind-east-id)
+			       ((eq value 'west)  wind-west-id)))
+			     ((eq set 'dragon)
+			      (cond
+			       ((eq value 'red)   dragon-red-id)
+			       ((eq value 'green) dragon-green-id)
+			       ((eq value 'white) dragon-white-id))))))))
 
 ;;
 ;; Yaku/Score functions
@@ -193,8 +193,8 @@ but all others drawn upright and obscured."
 
 (defun richii/draw-hands (hands)
   "Draw four HANDS on screen, where HANDS is a list of four hand lists."
-  (loop for seat in '(south north west)
-	do (richii/draw-closed-hand (cdr (assoc seat hands)) seat))
+  (cl-loop for seat in '(south north west)
+	   do (richii/draw-closed-hand (cdr (assoc seat hands)) seat))
   ;; TODO defcustom separator cha  
   (insert "\n" (make-string 15 ?-) "\n\n")
   (richii/draw-open-hand (cdr (assoc 'east hands))))
@@ -230,7 +230,7 @@ but all others drawn upright and obscured."
   (setq hands (richii/make-hands))
   
   ;; Draw em
-  (goto-line 1)
+  (forward-line 1)
   (richii/draw 'east hands)
   
   ;; Start game
